@@ -10,9 +10,9 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private var saldoBRL: Double = 0.0
-    private var saldoUSD: Double = 0.0
-    private var saldoBTC: Double = 0.0
+    private var saldoBRL: Double = 100000.0
+    private var saldoUSD: Double = 50000.0
+    private var saldoBTC: Double = 0.5
 
     private lateinit var tvSaldoReais: TextView
     private lateinit var tvSaldoDolares: TextView
@@ -54,6 +54,6 @@ class MainActivity : AppCompatActivity() {
         val formatadorUSD = NumberFormat.getCurrencyInstance(Locale.US)
         tvSaldoDolares.text = "Saldo USD: ${formatadorUSD.format(saldoUSD)}"
 
-        tvSaldoBitcoin.text = "Saldo BTC: ₿ %.8f".format(saldoBTC)
+        tvSaldoBitcoin.text = "Saldo BTC: ₿ %.4f".format(saldoBTC)
     }
 }

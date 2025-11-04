@@ -16,7 +16,6 @@
         android:text="@string/saldo_brl_formato"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#000000"
         android:layout_marginVertical="12dp" />
 
     <TextView
@@ -26,7 +25,6 @@
         android:text="@string/saldo_usd_formato"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#000000"
         android:layout_marginVertical="12dp" />
 
     <TextView
@@ -36,7 +34,6 @@
         android:text="@string/saldo_btc_formato"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#000000"
         android:layout_marginVertical="12dp" />
 
     <Button

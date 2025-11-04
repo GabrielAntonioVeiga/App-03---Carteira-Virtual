@@ -3,7 +3,7 @@
 
     <string name="saldo_brl_formato">Saldo BRL: R$ 0,00</string>
     <string name="saldo_usd_formato">Saldo USD: $ 0.00</string>
-    <string name="saldo_btc_formato">Saldo BTC: ₿ 0.00000000</string>
+    <string name="saldo_btc_formato">Saldo BTC: ₿ 0.0000</string>
     <string name="btn_converter_recursos">Converter Recursos</string>
 
     <string name="label_de">De:</string>
@@ -11,6 +11,7 @@
     <string name="label_valor">Valor:</string>
     <string name="hint_digite_valor">Digite o valor</string>
     <string name="btn_realizar_conversao">Realizar Conversão</string>
+    <string name="btn_voltar">Voltar</string>
 
     <string-array name="moedas_array">
         <item>Real (BRL)</item>
