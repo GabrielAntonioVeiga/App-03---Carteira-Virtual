@@ -1,3 +1,24 @@
 <resources>
     <string name="app_name">CarteiraVirtual</string>
+
+    <string name="saldo_brl_formato">Saldo BRL: R$ 0,00</string>
+    <string name="saldo_usd_formato">Saldo USD: $ 0.00</string>
+    <string name="saldo_btc_formato">Saldo BTC: ₿ 0.00000000</string>
+    <string name="btn_converter_recursos">Converter Recursos</string>
+
+    <string name="label_de">De:</string>
+    <string name="label_para">Para:</string>
+    <string name="label_valor">Valor:</string>
+    <string name="hint_digite_valor">Digite o valor</string>
+    <string name="btn_realizar_conversao">Realizar Conversão</string>
+
+    <string-array name="moedas_array">
+        <item>Real (BRL)</item>
+        <item>Dólar (USD)</item>
+        <item>Bitcoin (BTC)</item>
+    </string-array>
+
+    <string name="erro_saldo_insuficiente">Erro: Saldo insuficiente</string>
+    <string name="erro_valor_invalido">Erro: Valor inválido</string>
+    <string name="erro_mesma_moeda">Erro: Selecione moedas diferentes</string>
 </resources>
