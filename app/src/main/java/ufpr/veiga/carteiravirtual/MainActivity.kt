@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
 
     private val apiService = RetrofitClient.awesomeApi
 
-    // Launcher que recebe o resultado da conversão
     private val conversaoLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
