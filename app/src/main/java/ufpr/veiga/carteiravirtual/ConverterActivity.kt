@@ -3,6 +3,8 @@ package ufpr.veiga.carteiravirtual
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.*
 import androidx.activity.OnBackPressedCallback
@@ -27,6 +29,7 @@ class ConverterActivity : AppCompatActivity() {
     private lateinit var btnConfirmarConversao: Button
     private lateinit var progressBarConversao: ProgressBar
     private lateinit var tvResultadoConversao: TextView
+    private lateinit var btnVoltar: Button
 
     private val apiService = RetrofitClient.awesomeApi
 
@@ -44,6 +47,7 @@ class ConverterActivity : AppCompatActivity() {
         btnConfirmarConversao = findViewById(R.id.btnConfirmarConversao)
         progressBarConversao = findViewById(R.id.progressBarConversao)
         tvResultadoConversao = findViewById(R.id.tvResultadoConversao)
+        btnVoltar = findViewById(R.id.btnVoltar)
 
         configurarSpinners()
 
@@ -51,17 +55,25 @@ class ConverterActivity : AppCompatActivity() {
             realizarConversao()
         }
 
+        btnVoltar.setOnClickListener {
+            voltarParaMain()
+        }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val intent = Intent(this@ConverterActivity, MainActivity::class.java)
-                intent.putExtra("saldoBRL", saldoBRL)
-                intent.putExtra("saldoUSD", saldoUSD)
-                intent.putExtra("saldoBTC", saldoBTC)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                startActivity(intent)
-                finish()
+                voltarParaMain()
             }
         })
+    }
+
+    private fun voltarParaMain() {
+        val resultIntent = Intent().apply {
+            putExtra("saldoBRL", saldoBRL)
+            putExtra("saldoUSD", saldoUSD)
+            putExtra("saldoBTC", saldoBTC)
+        }
+        setResult(RESULT_OK, resultIntent)
+        finish()
     }
 
     private fun configurarSpinners() {
@@ -107,7 +119,6 @@ class ConverterActivity : AppCompatActivity() {
                 val codOrigem = obterCodigoMoeda(indexOrigem)
                 val codDestino = obterCodigoMoeda(indexDestino)
 
-
                 val taxa = withContext(Dispatchers.IO) {
                     obterTaxaConversao(codOrigem, codDestino)
                 }
@@ -116,6 +127,7 @@ class ConverterActivity : AppCompatActivity() {
 
                 atualizarSaldos(valor, valorConvertido, indexOrigem, indexDestino)
                 mostrarSucesso(valorConvertido, indexDestino)
+
             } catch (e: Exception) {
                 mostrarErro("Erro ao obter cotação: ${e.message}")
             } finally {
@@ -160,8 +172,6 @@ class ConverterActivity : AppCompatActivity() {
 
         throw Exception("Cotação ${origem}-${destino} não disponível na API")
     }
-
-
 
     private fun obterCodigoMoeda(index: Int): String {
         return when (index) {
