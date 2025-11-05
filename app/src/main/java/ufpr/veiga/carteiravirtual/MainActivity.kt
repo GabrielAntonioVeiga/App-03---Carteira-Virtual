@@ -1,10 +1,10 @@
 package ufpr.veiga.carteiravirtual
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.util.Log.e
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -12,19 +12,43 @@ import kotlinx.coroutines.launch
 import ufpr.veiga.carteiravirtual.network.RetrofitClient
 import ufpr.veiga.carteiravirtual.repository.AwesomeApiRepositoryImpl
 import ufpr.veiga.carteiravirtual.repository.AwesomeRepository
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import java.text.NumberFormat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
+
+    private var saldoBRL: Double = 100000.0
+    private var saldoUSD: Double = 50000.0
+    private var saldoBTC: Double = 0.5
+
+    private lateinit var tvSaldoReais: TextView
+    private lateinit var tvSaldoDolares: TextView
+    private lateinit var tvSaldoBitcoin: TextView
+    private lateinit var btnIrParaConversao: Button
+
     private val apiService = RetrofitClient.awesomeApi
     private val awesomeRepository: AwesomeRepository = AwesomeApiRepositoryImpl(apiService)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+
+        tvSaldoReais = findViewById(R.id.tvSaldoReais)
+        tvSaldoDolares = findViewById(R.id.tvSaldoDolares)
+        tvSaldoBitcoin = findViewById(R.id.tvSaldoBitcoin)
+        btnIrParaConversao = findViewById(R.id.btnIrParaConversao)
+
+        atualizarSaldos()
+
+        btnIrParaConversao.setOnClickListener {
+            val intent = Intent(this, ConverterActivity::class.java)
+            intent.putExtra("saldoBRL", saldoBRL)
+            intent.putExtra("saldoUSD", saldoUSD)
+            intent.putExtra("saldoBTC", saldoBTC)
+            startActivity(intent)
         }
 
         lifecycleScope.launch {
@@ -34,5 +58,23 @@ class MainActivity : AppCompatActivity() {
                 Log.e("CONVERSAO RRO", "ERRO: ${erro.message}", erro)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        saldoBRL = intent.getDoubleExtra("saldoBRL", saldoBRL)
+        saldoUSD = intent.getDoubleExtra("saldoUSD", saldoUSD)
+        saldoBTC = intent.getDoubleExtra("saldoBTC", saldoBTC)
+        atualizarSaldos()
+    }
+
+    private fun atualizarSaldos() {
+        val formatadorBRL = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
+        tvSaldoReais.text = "Saldo BRL: ${formatadorBRL.format(saldoBRL)}"
+
+        val formatadorUSD = NumberFormat.getCurrencyInstance(Locale.US)
+        tvSaldoDolares.text = "Saldo USD: ${formatadorUSD.format(saldoUSD)}"
+
+        tvSaldoBitcoin.text = "Saldo BTC: ₿ %.4f".format(saldoBTC)
     }
 }
