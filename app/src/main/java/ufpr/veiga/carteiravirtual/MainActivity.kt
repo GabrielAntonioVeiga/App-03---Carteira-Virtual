@@ -3,20 +3,15 @@ package ufpr.veiga.carteiravirtual
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.util.Log.e
-import androidx.activity.enableEdgeToEdge
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import android.widget.Button
+import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import ufpr.veiga.carteiravirtual.network.RetrofitClient
-import ufpr.veiga.carteiravirtual.repository.AwesomeApiRepositoryImpl
-import ufpr.veiga.carteiravirtual.repository.AwesomeRepository
-import android.widget.Button
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import java.text.NumberFormat
-import java.util.Locale
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,7 +25,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnIrParaConversao: Button
 
     private val apiService = RetrofitClient.awesomeApi
-    private val awesomeRepository: AwesomeRepository = AwesomeApiRepositoryImpl(apiService)
+
+    private val conversaoLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val data = result.data
+                if (data != null) {
+                    saldoBRL = data.getDoubleExtra("saldoBRL", saldoBRL)
+                    saldoUSD = data.getDoubleExtra("saldoUSD", saldoUSD)
+                    saldoBTC = data.getDoubleExtra("saldoBTC", saldoBTC)
+                    atualizarSaldos()
+                }
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,37 +51,30 @@ class MainActivity : AppCompatActivity() {
         atualizarSaldos()
 
         btnIrParaConversao.setOnClickListener {
-            val intent = Intent(this, ConverterActivity::class.java)
-            intent.putExtra("saldoBRL", saldoBRL)
-            intent.putExtra("saldoUSD", saldoUSD)
-            intent.putExtra("saldoBTC", saldoBTC)
-            startActivity(intent)
+            val intent = Intent(this, ConverterActivity::class.java).apply {
+                putExtra("saldoBRL", saldoBRL)
+                putExtra("saldoUSD", saldoUSD)
+                putExtra("saldoBTC", saldoBTC)
+            }
+            conversaoLauncher.launch(intent)
         }
 
         lifecycleScope.launch {
             try {
-                awesomeRepository.obterCotacao("BRL", "USD")
-            } catch (erro: Exception) {
-                Log.e("CONVERSAO RRO", "ERRO: ${erro.message}", erro)
+                val resposta = apiService.getCotacao("USD", "BRL")
+                Log.d("COTAÇÃO", "USD/BRL: ${resposta["USDBRL"]?.bid}")
+            } catch (e: Exception) {
+                Log.e("API", "Erro ao acessar API: ${e.message}", e)
             }
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        saldoBRL = intent.getDoubleExtra("saldoBRL", saldoBRL)
-        saldoUSD = intent.getDoubleExtra("saldoUSD", saldoUSD)
-        saldoBTC = intent.getDoubleExtra("saldoBTC", saldoBTC)
-        atualizarSaldos()
-    }
-
     private fun atualizarSaldos() {
         val formatadorBRL = NumberFormat.getCurrencyInstance(Locale("pt", "BR"))
-        tvSaldoReais.text = "Saldo BRL: ${formatadorBRL.format(saldoBRL)}"
-
         val formatadorUSD = NumberFormat.getCurrencyInstance(Locale.US)
-        tvSaldoDolares.text = "Saldo USD: ${formatadorUSD.format(saldoUSD)}"
 
+        tvSaldoReais.text = "Saldo BRL: ${formatadorBRL.format(saldoBRL)}"
+        tvSaldoDolares.text = "Saldo USD: ${formatadorUSD.format(saldoUSD)}"
         tvSaldoBitcoin.text = "Saldo BTC: ₿ %.4f".format(saldoBTC)
     }
 }

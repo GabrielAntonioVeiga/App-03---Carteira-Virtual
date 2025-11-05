@@ -9,9 +9,9 @@ object RetrofitClient {
     private const val BASE_URL = "https://economia.awesomeapi.com.br/json/"
 
     val awesomeApi: AwesomeApiService by lazy {
-        Retrofit.Builder()
+        retrofit2.Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
             .build()
             .create(AwesomeApiService::class.java)
     }

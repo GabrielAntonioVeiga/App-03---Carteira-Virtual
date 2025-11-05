@@ -7,9 +7,13 @@ import android.view.View
 import android.widget.*
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
-import kotlinx.coroutines.*
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import ufpr.veiga.carteiravirtual.network.RetrofitClient
 import java.text.NumberFormat
-import java.util.Locale
+import java.util.*
 
 class ConverterActivity : AppCompatActivity() {
 
@@ -23,11 +27,9 @@ class ConverterActivity : AppCompatActivity() {
     private lateinit var btnConfirmarConversao: Button
     private lateinit var progressBarConversao: ProgressBar
     private lateinit var tvResultadoConversao: TextView
+    private lateinit var btnVoltar: Button
 
-    private val taxaBRLparaUSD = 0.20
-    private val taxaUSDparaBRL = 5.0
-    private val taxaBTCparaUSD = 50000.0
-    private val taxaUSDparaBTC = 0.00002
+    private val apiService = RetrofitClient.awesomeApi
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +45,7 @@ class ConverterActivity : AppCompatActivity() {
         btnConfirmarConversao = findViewById(R.id.btnConfirmarConversao)
         progressBarConversao = findViewById(R.id.progressBarConversao)
         tvResultadoConversao = findViewById(R.id.tvResultadoConversao)
+        btnVoltar = findViewById(R.id.btnVoltar)
 
         configurarSpinners()
 
@@ -50,17 +53,25 @@ class ConverterActivity : AppCompatActivity() {
             realizarConversao()
         }
 
+        btnVoltar.setOnClickListener {
+            voltarParaMain()
+        }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                val intent = Intent(this@ConverterActivity, MainActivity::class.java)
-                intent.putExtra("saldoBRL", saldoBRL)
-                intent.putExtra("saldoUSD", saldoUSD)
-                intent.putExtra("saldoBTC", saldoBTC)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                startActivity(intent)
-                finish()
+                voltarParaMain()
             }
         })
+    }
+
+    private fun voltarParaMain() {
+        val resultIntent = Intent().apply {
+            putExtra("saldoBRL", saldoBRL)
+            putExtra("saldoUSD", saldoUSD)
+            putExtra("saldoBTC", saldoBTC)
+        }
+        setResult(RESULT_OK, resultIntent)
+        finish()
     }
 
     private fun configurarSpinners() {
@@ -70,7 +81,6 @@ class ConverterActivity : AppCompatActivity() {
             android.R.layout.simple_spinner_item
         )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-
         spinnerMoedaOrigem.adapter = adapter
         spinnerMoedaDestino.adapter = adapter
     }
@@ -79,12 +89,8 @@ class ConverterActivity : AppCompatActivity() {
         tvResultadoConversao.text = ""
 
         val valorTexto = etValorConverter.text.toString()
-        if (valorTexto.isEmpty()) {
-            mostrarErro(getString(R.string.erro_valor_invalido))
-            return
-        }
-
         val valor = valorTexto.toDoubleOrNull()
+
         if (valor == null || valor <= 0) {
             mostrarErro(getString(R.string.erro_valor_invalido))
             return
@@ -106,36 +112,76 @@ class ConverterActivity : AppCompatActivity() {
 
         mostrarCarregamento()
 
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(2000)
+        lifecycleScope.launch {
+            try {
+                val codOrigem = obterCodigoMoeda(indexOrigem)
+                val codDestino = obterCodigoMoeda(indexDestino)
 
-            val valorConvertido = calcularConversao(valor, indexOrigem, indexDestino)
+                val taxa = withContext(Dispatchers.IO) {
+                    obterTaxaConversao(codOrigem, codDestino)
+                }
 
-            atualizarSaldos(valor, valorConvertido, indexOrigem, indexDestino)
+                val valorConvertido = valor * taxa
 
-            ocultarCarregamento()
-            mostrarSucesso(valorConvertido, indexDestino)
+                atualizarSaldos(valor, valorConvertido, indexOrigem, indexDestino)
+                mostrarSucesso(valorConvertido, indexDestino)
+
+            } catch (e: Exception) {
+                mostrarErro("Erro ao obter cotação: ${e.message}")
+            } finally {
+                ocultarCarregamento()
+            }
         }
     }
 
-    private fun calcularConversao(valor: Double, indexOrigem: Int, indexDestino: Int): Double {
-        val valorEmUSD = when (indexOrigem) {
-            0 -> valor * taxaBRLparaUSD
-            1 -> valor
-            2 -> valor * taxaBTCparaUSD
-            else -> valor
+    private suspend fun obterTaxaConversao(origem: String, destino: String): Double {
+        if (destino == "BTC") {
+            val taxaUsdDestino = apiService
+                .getCotacao("BTC", "USD")["BTCUSD"]
+                ?.bid?.toDoubleOrNull()
+
+            val taxaOrigemParaUsd = when (origem) {
+                "USD" -> 1.0
+                "BRL" -> apiService
+                    .getCotacao("USD", "BRL")["USDBRL"]
+                    ?.bid?.toDoubleOrNull()
+                    ?.let { 1 / it }
+                else -> null
+            }
+
+            if (taxaUsdDestino == null || taxaOrigemParaUsd == null) {
+                throw Exception("Não foi possível obter cotação para $origem → BTC")
+            }
+
+            return taxaOrigemParaUsd / taxaUsdDestino
         }
 
-        return when (indexDestino) {
-            0 -> valorEmUSD * taxaUSDparaBRL
-            1 -> valorEmUSD
-            2 -> valorEmUSD * taxaUSDparaBTC
-            else -> valorEmUSD
+        val chave = "${origem}${destino}"
+        val resposta = apiService.getCotacao(origem, destino)
+        val taxaDireta = resposta[chave]?.bid?.toDoubleOrNull()
+
+        if (taxaDireta != null) return taxaDireta
+
+        val chaveInversa = "${destino}${origem}"
+        val respostaInversa = apiService.getCotacao(destino, origem)
+        val taxaInversa = respostaInversa[chaveInversa]?.bid?.toDoubleOrNull()
+
+        if (taxaInversa != null) return 1 / taxaInversa
+
+        throw Exception("Cotação ${origem}-${destino} não disponível na API")
+    }
+
+    private fun obterCodigoMoeda(index: Int): String {
+        return when (index) {
+            0 -> "BRL"
+            1 -> "USD"
+            2 -> "BTC"
+            else -> "USD"
         }
     }
 
-    private fun obterSaldo(indexMoeda: Int): Double {
-        return when (indexMoeda) {
+    private fun obterSaldo(index: Int): Double {
+        return when (index) {
             0 -> saldoBRL
             1 -> saldoUSD
             2 -> saldoBTC
@@ -149,7 +195,6 @@ class ConverterActivity : AppCompatActivity() {
             1 -> saldoUSD -= valorOrigem
             2 -> saldoBTC -= valorOrigem
         }
-
         when (indexDestino) {
             0 -> saldoBRL += valorDestino
             1 -> saldoUSD += valorDestino
@@ -160,11 +205,17 @@ class ConverterActivity : AppCompatActivity() {
     private fun mostrarCarregamento() {
         progressBarConversao.visibility = View.VISIBLE
         btnConfirmarConversao.isEnabled = false
+        spinnerMoedaOrigem.isEnabled = false
+        spinnerMoedaDestino.isEnabled = false
+        etValorConverter.isEnabled = false
     }
 
     private fun ocultarCarregamento() {
         progressBarConversao.visibility = View.GONE
         btnConfirmarConversao.isEnabled = true
+        spinnerMoedaOrigem.isEnabled = true
+        spinnerMoedaDestino.isEnabled = true
+        etValorConverter.isEnabled = true
     }
 
     private fun mostrarErro(mensagem: String) {
@@ -182,10 +233,9 @@ class ConverterActivity : AppCompatActivity() {
                 val formatador = NumberFormat.getCurrencyInstance(Locale.US)
                 "Resultado: ${formatador.format(valorConvertido)}"
             }
-            2 -> "Resultado: ₿ %.8f".format(valorConvertido)
+            2 -> "Resultado: ₿ %.4f".format(valorConvertido)
             else -> "Resultado: $valorConvertido"
         }
-
         tvResultadoConversao.text = textoResultado
         tvResultadoConversao.setTextColor(Color.parseColor("#00AA00"))
     }
