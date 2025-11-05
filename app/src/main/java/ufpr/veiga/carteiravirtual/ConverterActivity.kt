@@ -130,13 +130,18 @@ class ConverterActivity : AppCompatActivity() {
             val resposta = apiService.getCotacao(origem, destino)
             resposta[chave]?.bid?.toDouble() ?: throw Exception("Cotação não encontrada")
         } catch (e: Exception) {
-
-            if (origem != "USD" && destino != "USD") {
+            if ((origem == "BRL" && destino == "BTC") || (origem == "BTC" && destino == "BRL")) {
                 val viaUsd1 = apiService.getCotacao(origem, "USD")["${origem}USD"]?.bid?.toDouble()
                 val viaUsd2 = apiService.getCotacao("USD", destino)["USD${destino}"]?.bid?.toDouble()
-                if (viaUsd1 != null && viaUsd2 != null) viaUsd1 * viaUsd2
-                else throw Exception("Conversão indireta não disponível")
-            } else throw e
+
+                if (viaUsd1 != null && viaUsd2 != null) {
+                    viaUsd1 * viaUsd2
+                } else {
+                    throw Exception("Conversão indireta via USD não disponível")
+                }
+            } else {
+                throw e
+            }
         }
     }
 
