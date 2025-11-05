@@ -2,6 +2,16 @@ package ufpr.veiga.carteiravirtual
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.util.Log.e
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import ufpr.veiga.carteiravirtual.network.RetrofitClient
+import ufpr.veiga.carteiravirtual.repository.AwesomeApiRepositoryImpl
+import ufpr.veiga.carteiravirtual.repository.AwesomeRepository
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -18,6 +28,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvSaldoDolares: TextView
     private lateinit var tvSaldoBitcoin: TextView
     private lateinit var btnIrParaConversao: Button
+
+    private val apiService = RetrofitClient.awesomeApi
+    private val awesomeRepository: AwesomeRepository = AwesomeApiRepositoryImpl(apiService)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +49,14 @@ class MainActivity : AppCompatActivity() {
             intent.putExtra("saldoUSD", saldoUSD)
             intent.putExtra("saldoBTC", saldoBTC)
             startActivity(intent)
+        }
+
+        lifecycleScope.launch {
+            try {
+                awesomeRepository.obterCotacao("BRL", "USD")
+            } catch (erro: Exception) {
+                Log.e("CONVERSAO RRO", "ERRO: ${erro.message}", erro)
+            }
         }
     }
 
