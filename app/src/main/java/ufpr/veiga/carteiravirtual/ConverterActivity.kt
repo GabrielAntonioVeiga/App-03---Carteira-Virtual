@@ -125,38 +125,42 @@ class ConverterActivity : AppCompatActivity() {
     }
 
     private suspend fun obterTaxaConversao(origem: String, destino: String): Double {
+        if (destino == "BTC") {
+            val taxaUsdDestino = apiService
+                .getCotacao("BTC", "USD")["BTCUSD"]
+                ?.bid?.toDoubleOrNull()
 
-        val requerConversaoIndireta = (origem == "BRL" && destino == "BTC") ||
-                (origem == "BTC" && destino == "BRL")
-
-        if (requerConversaoIndireta) {
-
-            val taxaOrigemParaUSD = apiService
-                .getCotacao(origem, "USD")
-                .values
-                .firstOrNull()?.bid?.toDoubleOrNull()
-
-            val taxaUSDparaDestino = apiService
-                .getCotacao("USD", destino)
-                .values
-                .firstOrNull()?.bid?.toDoubleOrNull()
-
-            if (taxaOrigemParaUSD == null || taxaUSDparaDestino == null) {
-                throw Exception("Não foi possível obter cotação indireta via USD")
+            val taxaOrigemParaUsd = when (origem) {
+                "USD" -> 1.0
+                "BRL" -> apiService
+                    .getCotacao("USD", "BRL")["USDBRL"]
+                    ?.bid?.toDoubleOrNull()
+                    ?.let { 1 / it }
+                else -> null
             }
 
-            return taxaOrigemParaUSD * taxaUSDparaDestino
+            if (taxaUsdDestino == null || taxaOrigemParaUsd == null) {
+                throw Exception("Não foi possível obter cotação para $origem → BTC")
+            }
+
+            return taxaOrigemParaUsd / taxaUsdDestino
         }
 
+        val chave = "${origem}${destino}"
         val resposta = apiService.getCotacao(origem, destino)
-        val taxaDireta = resposta.values.firstOrNull()?.bid?.toDoubleOrNull()
+        val taxaDireta = resposta[chave]?.bid?.toDoubleOrNull()
 
-        if (taxaDireta == null) {
-            throw Exception("Cotação ${origem}-${destino} indisponível na API")
-        }
+        if (taxaDireta != null) return taxaDireta
 
-        return taxaDireta
+        val chaveInversa = "${destino}${origem}"
+        val respostaInversa = apiService.getCotacao(destino, origem)
+        val taxaInversa = respostaInversa[chaveInversa]?.bid?.toDoubleOrNull()
+
+        if (taxaInversa != null) return 1 / taxaInversa
+
+        throw Exception("Cotação ${origem}-${destino} não disponível na API")
     }
+
 
 
     private fun obterCodigoMoeda(index: Int): String {
