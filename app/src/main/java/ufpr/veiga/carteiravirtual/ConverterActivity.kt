@@ -125,25 +125,39 @@ class ConverterActivity : AppCompatActivity() {
     }
 
     private suspend fun obterTaxaConversao(origem: String, destino: String): Double {
-        return try {
-            val chave = "${origem}${destino}"
-            val resposta = apiService.getCotacao(origem, destino)
-            resposta[chave]?.bid?.toDouble() ?: throw Exception("Cotação não encontrada")
-        } catch (e: Exception) {
-            if ((origem == "BRL" && destino == "BTC") || (origem == "BTC" && destino == "BRL")) {
-                val viaUsd1 = apiService.getCotacao(origem, "USD")["${origem}USD"]?.bid?.toDouble()
-                val viaUsd2 = apiService.getCotacao("USD", destino)["USD${destino}"]?.bid?.toDouble()
 
-                if (viaUsd1 != null && viaUsd2 != null) {
-                    viaUsd1 * viaUsd2
-                } else {
-                    throw Exception("Conversão indireta via USD não disponível")
-                }
-            } else {
-                throw e
+        val requerConversaoIndireta = (origem == "BRL" && destino == "BTC") ||
+                (origem == "BTC" && destino == "BRL")
+
+        if (requerConversaoIndireta) {
+
+            val taxaOrigemParaUSD = apiService
+                .getCotacao(origem, "USD")
+                .values
+                .firstOrNull()?.bid?.toDoubleOrNull()
+
+            val taxaUSDparaDestino = apiService
+                .getCotacao("USD", destino)
+                .values
+                .firstOrNull()?.bid?.toDoubleOrNull()
+
+            if (taxaOrigemParaUSD == null || taxaUSDparaDestino == null) {
+                throw Exception("Não foi possível obter cotação indireta via USD")
             }
+
+            return taxaOrigemParaUSD * taxaUSDparaDestino
         }
+
+        val resposta = apiService.getCotacao(origem, destino)
+        val taxaDireta = resposta.values.firstOrNull()?.bid?.toDoubleOrNull()
+
+        if (taxaDireta == null) {
+            throw Exception("Cotação ${origem}-${destino} indisponível na API")
+        }
+
+        return taxaDireta
     }
+
 
     private fun obterCodigoMoeda(index: Int): String {
         return when (index) {
